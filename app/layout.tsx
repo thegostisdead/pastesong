@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import { Syne, Outfit, Space_Mono } from 'next/font/google'
 import './globals.css'
 
@@ -21,12 +22,20 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://pastesong.vercel.app'),
   title: 'PasteSong — One link, every platform',
-  description: 'Paste a Spotify or Apple Music link. Get it on every platform.',
+  description: 'Paste a Spotify or Apple Music link and instantly get it on every platform.',
   openGraph: {
-    title: 'PasteSong',
-    description: 'Paste a Spotify or Apple Music link. Get it on every platform.',
+    title: 'PasteSong — One link, every platform',
+    description: 'Paste a Spotify or Apple Music link and instantly get it on every platform.',
+    url: 'https://pastesong.vercel.app',
+    siteName: 'PasteSong',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PasteSong — One link, every platform',
+    description: 'Paste a Spotify or Apple Music link and instantly get it on every platform.',
   },
 }
 
@@ -36,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${syne.variable} ${outfit.variable} ${spaceMono.variable}`}>
         <div className="glow-top" />
         <div className="relative z-10">{children}</div>
+        <Analytics />
       </body>
     </html>
   )

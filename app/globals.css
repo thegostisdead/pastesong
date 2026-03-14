@@ -93,7 +93,6 @@ body::before {
 /* Input focus ring */
 .music-input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #c8f041;
 }
 
 /* Scrollbar */

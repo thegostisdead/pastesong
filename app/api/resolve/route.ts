@@ -64,6 +64,114 @@ const PLATFORM_ORDER = [
   'pandora', 'anghami', 'boomplay', 'napster',
 ]
 
+function detectCountry(url: string): string {
+  try {
+    const u = new URL(url)
+    // Apple Music: music.apple.com/fr/album/...
+    if (u.hostname === 'music.apple.com') {
+      const match = u.pathname.match(/^\/([a-z]{2})\//)
+      if (match) return match[1].toUpperCase()
+    }
+  } catch {}
+  return 'US'
+}
+
+// Spotify token cache
+let spotifyTokenCache: { token: string; expiresAt: number } | null = null
+
+async function getSpotifyToken(): Promise<string | null> {
+  const clientId = process.env.SPOTIFY_CLIENT_ID
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null
+
+  if (spotifyTokenCache && Date.now() < spotifyTokenCache.expiresAt) {
+    return spotifyTokenCache.token
+  }
+
+  try {
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      },
+      body: 'grant_type=client_credentials',
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    spotifyTokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 }
+    return data.access_token
+  } catch {
+    return null
+  }
+}
+
+async function searchSpotify(title: string, artist: string, type: 'song' | 'album'): Promise<string | null> {
+  try {
+    const token = await getSpotifyToken()
+    if (!token) return null
+
+    const searchType = type === 'album' ? 'album' : 'track'
+    const q = encodeURIComponent(`${title} ${artist}`)
+    const res = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=${searchType}&limit=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+
+    if (type === 'album') {
+      return data.albums?.items?.[0]?.external_urls?.spotify ?? null
+    }
+    return data.tracks?.items?.[0]?.external_urls?.spotify ?? null
+  } catch {
+    return null
+  }
+}
+
+async function searchItunes(title: string, artist: string, type: 'song' | 'album'): Promise<string | null> {
+  try {
+    const entity = type === 'album' ? 'album' : 'song'
+    const term = encodeURIComponent(`${title} ${artist}`)
+    const res = await fetch(`https://itunes.apple.com/search?term=${term}&entity=${entity}&limit=5`, {
+      next: { revalidate: 3600 },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const result = data.results?.[0]
+    if (!result) return null
+    return type === 'album' ? result.collectionViewUrl : result.trackViewUrl
+  } catch {
+    return null
+  }
+}
+
+const ALLOWED_HOSTNAMES = [
+  'open.spotify.com',
+  'music.apple.com',
+  'music.youtube.com',
+  'tidal.com',
+  'deezer.com',
+  'soundcloud.com',
+  'music.amazon.com',
+  'www.amazon.com',
+  'pandora.com',
+  'anghami.com',
+  'boomplay.com',
+  'napster.com',
+  'song.link',
+  'odesli.co',
+]
+
+function isAllowedMusicUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw)
+    if (u.protocol !== 'https:') return false
+    return ALLOWED_HOSTNAMES.some(h => u.hostname === h || u.hostname.endsWith(`.${h}`))
+  } catch {
+    return false
+  }
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url')
 
@@ -71,12 +179,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 })
   }
 
+  if (!isAllowedMusicUrl(url)) {
+    return NextResponse.json({ error: 'URL not supported. Please paste a link from a supported music platform.' }, { status: 400 })
+  }
+
   try {
-    const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(url)}&userCountry=US`
+    const country = detectCountry(url)
+    const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(url)}&userCountry=${country}`
     const res = await fetch(apiUrl, { next: { revalidate: 3600 } })
 
     if (!res.ok) {
       const text = await res.text()
+      if (res.status === 400) {
+        return NextResponse.json({ error: 'Link not recognized. Try pasting a track link instead of an album link.' }, { status: 400 })
+      }
       if (res.status === 404) {
         return NextResponse.json({ error: 'Song not found. Make sure the link is valid.' }, { status: 404 })
       }
@@ -94,6 +210,23 @@ export async function GET(req: NextRequest) {
 
     if (!mainEntity) {
       return NextResponse.json({ error: 'Could not parse song metadata.' }, { status: 500 })
+    }
+
+    // Run fallbacks in parallel for missing platforms
+    const [itunesUrl, spotifyUrl] = await Promise.all([
+      !data.linksByPlatform['appleMusic']
+        ? searchItunes(mainEntity.title, mainEntity.artistName, mainEntity.type)
+        : null,
+      !data.linksByPlatform['spotify']
+        ? searchSpotify(mainEntity.title, mainEntity.artistName, mainEntity.type)
+        : null,
+    ])
+
+    if (itunesUrl) {
+      data.linksByPlatform['appleMusic'] = { country: 'US', url: itunesUrl, entityUniqueId: '' }
+    }
+    if (spotifyUrl) {
+      data.linksByPlatform['spotify'] = { country: 'US', url: spotifyUrl, entityUniqueId: '' }
     }
 
     // Build platform list in preferred order
