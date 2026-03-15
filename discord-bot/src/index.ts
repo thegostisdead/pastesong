@@ -130,7 +130,7 @@ const client = new Client({
   ],
 })
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`Logged in as ${client.user?.tag}`)
   client.user?.setActivity('for song links', { type: ActivityType.Watching })
 })
