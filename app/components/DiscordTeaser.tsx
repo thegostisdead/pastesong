@@ -16,11 +16,19 @@ export default function DiscordTeaser() {
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-text text-sm font-body font-medium">Discord Bot</p>
             <span className="text-[10px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded bg-border text-muted">
-              Coming soon
+              Self-hosted
             </span>
+            <a
+              href="https://github.com/thegostisdead/pastesong"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-mono text-muted hover:text-text transition-colors"
+            >
+              GitHub ↗
+            </a>
           </div>
           <p className="text-muted text-xs font-mono leading-relaxed">
-            Paste any song link in a channel — the bot replies with every platform.
+            Paste any song link in a channel — the bot replies with every platform. Self-host it using the source code on GitHub.
           </p>
         </div>
       </div>
