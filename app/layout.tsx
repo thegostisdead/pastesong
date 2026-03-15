@@ -26,18 +26,47 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL('https://pastesong.vercel.app'),
   title: 'PasteSong — One link, every platform',
-  description: 'Paste a Spotify or Apple Music link and instantly get it on every platform.',
+  description:
+    'Instantly convert music links between Spotify, Apple Music, YouTube Music, Tidal, Deezer, SoundCloud, and Amazon Music. Paste any streaming link and share it everywhere.',
+  keywords: [
+    'music link converter',
+    'spotify link converter',
+    'apple music link converter',
+    'youtube music converter',
+    'tidal link',
+    'deezer link',
+    'soundcloud link',
+    'amazon music link',
+    'cross-platform music',
+    'music sharing',
+    'streaming link converter',
+  ],
+  authors: [{ name: 'PasteSong' }],
+  alternates: {
+    canonical: 'https://pastesong.vercel.app',
+  },
   openGraph: {
     title: 'PasteSong — One link, every platform',
-    description: 'Paste a Spotify or Apple Music link and instantly get it on every platform.',
+    description:
+      'Instantly convert music links between Spotify, Apple Music, YouTube Music, Tidal, Deezer, SoundCloud, and Amazon Music.',
     url: 'https://pastesong.vercel.app',
     siteName: 'PasteSong',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'PasteSong — One link, every platform',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PasteSong — One link, every platform',
-    description: 'Paste a Spotify or Apple Music link and instantly get it on every platform.',
+    description:
+      'Instantly convert music links between Spotify, Apple Music, YouTube Music, Tidal, Deezer, SoundCloud, and Amazon Music.',
+    images: ['/opengraph-image'],
   },
 }
 
