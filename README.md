@@ -145,24 +145,6 @@ Or via CLI:
 vercel --prod
 ```
 
-## Project structure
-
-```
-pastesong/
-├── app/
-│   ├── api/
-│   │   └── resolve/route.ts   # API route — Odesli fetch + iTunes/Spotify fallback
-│   ├── components/
-│   │   └── MusicResolver.tsx  # Main UI component
-│   ├── opengraph-image.tsx    # OG image for Discord / social embeds
-│   ├── layout.tsx
-│   ├── page.tsx
-│   └── globals.css
-└── discord-bot/
-    └── src/
-        └── index.ts           # Bot entrypoint — watches messages, replies with embed
-```
-
 ## Contributing
 
 Contributions are welcome. Open an issue or submit a pull request.
