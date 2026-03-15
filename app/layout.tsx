@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import { Syne, Outfit, Space_Mono } from 'next/font/google'
+import { GooeyToaster } from 'goey-toast'
+import 'goey-toast/styles.css'
 import './globals.css'
 
 const syne = Syne({
@@ -45,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${syne.variable} ${outfit.variable} ${spaceMono.variable}`}>
         <div className="glow-top" />
         <div className="relative z-10">{children}</div>
+        <GooeyToaster position="bottom-center" theme="dark" preset="bouncy" />
         <Analytics />
       </body>
     </html>

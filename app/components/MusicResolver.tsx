@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { gooeyToast } from 'goey-toast'
 import type { ResolvedSong } from '../api/resolve/route'
 
 const PLATFORM_DOMAINS: Record<string, string> = {
@@ -59,10 +60,11 @@ function isValidMusicUrl(url: string): boolean {
 
 function useCopyToClipboard() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const copy = useCallback((id: string, text: string) => {
+  const copy = useCallback((id: string, text: string, platformName: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 1800)
+      gooeyToast.success(`${platformName} link copied!`)
     })
   }, [])
   return { copiedId, copy }
@@ -72,7 +74,6 @@ type State =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; data: ResolvedSong }
-  | { status: 'error'; message: string }
 
 export default function MusicResolver() {
   const searchParams = useSearchParams()
@@ -98,14 +99,17 @@ export default function MusicResolver() {
       const json = await res.json()
 
       if (!res.ok) {
-        setState({ status: 'error', message: json.error ?? 'Something went wrong.' })
+        const message = json.error ?? 'Something went wrong.'
+        setState({ status: 'idle' })
+        gooeyToast.error(message)
         return
       }
 
       setState({ status: 'success', data: json })
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return
-      setState({ status: 'error', message: 'Network error. Please try again.' })
+      setState({ status: 'idle' })
+      gooeyToast.error('Network error. Please try again.')
     }
   }, [])
 
@@ -218,18 +222,6 @@ export default function MusicResolver() {
       {/* Result area */}
       <div className="w-full max-w-2xl">
         {state.status === 'loading' && <SkeletonCard />}
-
-        {state.status === 'error' && (
-          <div className="animate-fade-up rounded-xl border border-red-900/40 bg-red-950/20 p-6 text-center">
-            <p className="text-red-400 font-mono text-sm mb-3">{state.message}</p>
-            <button
-              onClick={handleReset}
-              className="text-xs font-mono text-muted hover:text-text underline transition-colors"
-            >
-              Try again
-            </button>
-          </div>
-        )}
 
         {state.status === 'success' && (
           <ResultCard data={state.data} onReset={handleReset} />
@@ -372,7 +364,7 @@ function ResultCard({ data, onReset }: { data: ResolvedSong; onReset: () => void
 
             {/* Copy button */}
             <button
-              onClick={() => copy(platform.id, platform.url)}
+              onClick={() => copy(platform.id, platform.url, platform.name)}
               title={`Copy ${platform.name} link`}
               className="flex-shrink-0 p-1.5 rounded-lg text-muted hover:text-accent hover:bg-border transition-all opacity-0 group-hover:opacity-100"
             >

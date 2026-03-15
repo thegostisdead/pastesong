@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 export interface OdesliEntity {
   id: string
   type: 'song' | 'album'
@@ -91,6 +93,7 @@ async function getSpotifyToken(): Promise<string | null> {
   try {
     const res = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
@@ -114,6 +117,7 @@ async function searchSpotify(title: string, artist: string, type: 'song' | 'albu
     const searchType = type === 'album' ? 'album' : 'track'
     const q = encodeURIComponent(`${title} ${artist}`)
     const res = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=${searchType}&limit=1`, {
+      cache: 'no-store',
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) return null
@@ -172,34 +176,80 @@ function isAllowedMusicUrl(raw: string): boolean {
   }
 }
 
+function inputPlatform(url: string): string {
+  try {
+    const { hostname } = new URL(url)
+    if (hostname.includes('spotify')) return 'spotify'
+    if (hostname.includes('apple')) return 'appleMusic'
+    if (hostname === 'music.youtube.com') return 'youtubeMusic'
+    if (hostname.includes('youtube')) return 'youtube'
+    if (hostname.includes('tidal')) return 'tidal'
+    if (hostname.includes('deezer')) return 'deezer'
+    if (hostname.includes('soundcloud')) return 'soundcloud'
+    if (hostname.includes('amazon')) return 'amazonMusic'
+    if (hostname.includes('pandora')) return 'pandora'
+    if (hostname.includes('anghami')) return 'anghami'
+    if (hostname.includes('boomplay')) return 'boomplay'
+    if (hostname.includes('napster')) return 'napster'
+    if (hostname.includes('song.link') || hostname.includes('odesli')) return 'songlink'
+  } catch {}
+  return 'unknown'
+}
+
 export async function GET(req: NextRequest) {
+  const startTime = Date.now()
   const url = req.nextUrl.searchParams.get('url')
 
+  const event: Record<string, unknown> = {
+    service: 'api/resolve',
+    timestamp: new Date().toISOString(),
+    env: {
+      commit: process.env.VERCEL_GIT_COMMIT_SHA ?? 'local',
+      region: process.env.VERCEL_REGION ?? 'local',
+    },
+    input: { url, platform: url ? inputPlatform(url) : null },
+    fallbacks: { itunes_used: false, spotify_used: false },
+  }
+
+  const respond = (body: object, status: number) => {
+    event.status = status
+    event.outcome = status < 400 ? 'success' : status < 500 ? 'client_error' : 'server_error'
+    event.duration_ms = Date.now() - startTime
+    if (status >= 400) {
+      console.error(JSON.stringify(event))
+    } else {
+      console.log(JSON.stringify(event))
+    }
+    return NextResponse.json(body, { status })
+  }
+
   if (!url) {
-    return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 })
+    return respond({ error: 'Missing url parameter' }, 400)
   }
 
   if (!isAllowedMusicUrl(url)) {
-    return NextResponse.json({ error: 'URL not supported. Please paste a link from a supported music platform.' }, { status: 400 })
+    return respond({ error: 'URL not supported. Please paste a link from a supported music platform.' }, 400)
   }
 
   try {
     const country = detectCountry(url)
+    event.country = country
+
     const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(url)}&userCountry=${country}`
     const res = await fetch(apiUrl, { next: { revalidate: 3600 } })
+    event.odesli_status = res.status
 
     if (!res.ok) {
-      const text = await res.text()
       if (res.status === 400) {
-        return NextResponse.json({ error: 'Link not recognized. Try pasting a track link instead of an album link.' }, { status: 400 })
+        return respond({ error: 'Link not recognized. Try pasting a track link instead of an album link.' }, 400)
       }
       if (res.status === 404) {
-        return NextResponse.json({ error: 'Song not found. Make sure the link is valid.' }, { status: 404 })
+        return respond({ error: 'Song not found. Make sure the link is valid.' }, 404)
       }
       if (res.status === 429) {
-        return NextResponse.json({ error: 'Too many requests. Try again in a moment.' }, { status: 429 })
+        return respond({ error: 'Too many requests. Try again in a moment.' }, 429)
       }
-      return NextResponse.json({ error: `Failed to resolve link (${res.status})` }, { status: 500 })
+      return respond({ error: `Failed to resolve link (${res.status})` }, 500)
     }
 
     const data: OdesliResponse = await res.json()
@@ -209,24 +259,26 @@ export async function GET(req: NextRequest) {
     const mainEntity = entities.find(e => e.thumbnailUrl) ?? entities[0]
 
     if (!mainEntity) {
-      return NextResponse.json({ error: 'Could not parse song metadata.' }, { status: 500 })
+      return respond({ error: 'Could not parse song metadata.' }, 500)
     }
 
+    event.song = { title: mainEntity.title, artist: mainEntity.artistName, type: mainEntity.type }
+
     // Run fallbacks in parallel for missing platforms
+    const needsItunes = !data.linksByPlatform['appleMusic']
+    const needsSpotify = !data.linksByPlatform['spotify']
     const [itunesUrl, spotifyUrl] = await Promise.all([
-      !data.linksByPlatform['appleMusic']
-        ? searchItunes(mainEntity.title, mainEntity.artistName, mainEntity.type)
-        : null,
-      !data.linksByPlatform['spotify']
-        ? searchSpotify(mainEntity.title, mainEntity.artistName, mainEntity.type)
-        : null,
+      needsItunes ? searchItunes(mainEntity.title, mainEntity.artistName, mainEntity.type) : null,
+      needsSpotify ? searchSpotify(mainEntity.title, mainEntity.artistName, mainEntity.type) : null,
     ])
 
     if (itunesUrl) {
       data.linksByPlatform['appleMusic'] = { country: 'US', url: itunesUrl, entityUniqueId: '' }
+      event.fallbacks = { ...event.fallbacks as object, itunes_used: true }
     }
     if (spotifyUrl) {
       data.linksByPlatform['spotify'] = { country: 'US', url: spotifyUrl, entityUniqueId: '' }
+      event.fallbacks = { ...event.fallbacks as object, spotify_used: true }
     }
 
     // Build platform list in preferred order
@@ -239,6 +291,9 @@ export async function GET(req: NextRequest) {
         color: PLATFORM_META[id]?.color ?? '#ffffff',
       }))
 
+    event.platform_count = platforms.length
+    event.platforms_found = platforms.map(p => p.id)
+
     const result: ResolvedSong = {
       title: mainEntity.title,
       artist: mainEntity.artistName,
@@ -248,9 +303,9 @@ export async function GET(req: NextRequest) {
       platforms,
     }
 
-    return NextResponse.json(result)
+    return respond(result, 200)
   } catch (err) {
-    console.error('[resolve]', err)
-    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
+    event.error = { message: err instanceof Error ? err.message : String(err), type: err instanceof Error ? err.name : 'unknown' }
+    return respond({ error: 'Something went wrong. Please try again.' }, 500)
   }
 }
