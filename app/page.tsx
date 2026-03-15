@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { headers } from 'next/headers'
 import Header from './components/Header'
 import MusicResolver from './components/MusicResolver'
 import DiscordTeaser from './components/DiscordTeaser'
@@ -21,10 +22,12 @@ const jsonLd = {
 }
 
 export default function Home() {
+  const nonce = headers().get('x-nonce') ?? ''
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {/* Server-rendered — no JS */}

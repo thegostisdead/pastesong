@@ -79,16 +79,17 @@ function detectCountry(url: string): string {
   return 'US'
 }
 
-// Spotify token cache
-let spotifyTokenCache: { token: string; expiresAt: number } | null = null
-
 async function getSpotifyToken(): Promise<string | null> {
   const clientId = process.env.SPOTIFY_CLIENT_ID
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
   if (!clientId || !clientSecret) return null
 
-  if (spotifyTokenCache && Date.now() < spotifyTokenCache.expiresAt) {
-    return spotifyTokenCache.token
+  const client = await getRedis()
+  if (client) {
+    try {
+      const cached = await client.get('spotify:token')
+      if (cached) return cached
+    } catch {}
   }
 
   try {
@@ -103,8 +104,14 @@ async function getSpotifyToken(): Promise<string | null> {
     })
     if (!res.ok) return null
     const data = await res.json()
-    spotifyTokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 }
-    return data.access_token
+    const token: string = data.access_token
+    const ttl: number = (data.expires_in ?? 3600) - 60
+    if (client) {
+      try {
+        await client.set('spotify:token', token, { EX: ttl })
+      } catch {}
+    }
+    return token
   } catch {
     return null
   }
@@ -232,10 +239,19 @@ export async function GET(req: NextRequest) {
   const startTime = Date.now()
   const url = req.nextUrl.searchParams.get('url')
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  // x-real-ip is set by Vercel infrastructure and cannot be spoofed by clients.
+  // Fall back to the rightmost entry of x-forwarded-for (appended by Vercel's edge).
+  // Never use the leftmost entry — it is user-controlled.
+  const ip =
+    req.headers.get('x-real-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ??
+    'unknown'
   const allowed = await checkRateLimit(ip)
   if (!allowed) {
-    return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+    return NextResponse.json(
+      { error: 'Too many requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(RATE_WINDOW) } },
+    )
   }
 
   const event: Record<string, unknown> = {
@@ -263,6 +279,10 @@ export async function GET(req: NextRequest) {
 
   if (!url) {
     return respond({ error: 'Missing url parameter' }, 400)
+  }
+
+  if (url.length > 2048) {
+    return respond({ error: 'URL too long.' }, 400)
   }
 
   if (!isAllowedMusicUrl(url)) {
