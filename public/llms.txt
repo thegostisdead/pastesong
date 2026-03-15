@@ -1,0 +1,54 @@
+# PasteSong
+
+> Convert any music streaming link into links for every major platform — instantly.
+
+## What it does
+
+Paste a song or album link from Spotify, Apple Music, YouTube Music, Tidal, Deezer, SoundCloud, or any other supported platform and PasteSong returns equivalent links for all platforms at once.
+
+No sign-up, no tracking, no data stored. Every lookup happens in real time.
+
+## How it works
+
+1. User pastes a music URL into the input field.
+2. The app calls `/api/resolve?url=<encoded-url>`.
+3. The API queries the [Odesli / song.link](https://odesli.co) service, which indexes cross-platform music links.
+4. If Apple Music is missing from the Odesli response, the iTunes Search API is used as a fallback (matched by title + artist).
+5. If Spotify is missing, the Spotify Search API is used as a fallback (requires optional env credentials).
+6. Results are returned as a list of platform links with artwork, title, and artist metadata.
+
+## Supported platforms
+
+Spotify, Apple Music, YouTube Music, YouTube, Tidal, Amazon Music, Deezer, SoundCloud, Pandora, Anghami, Boomplay, Napster
+
+## API
+
+`GET /api/resolve?url=<encoded-music-url>`
+
+Returns JSON:
+```json
+{
+  "title": "Song Title",
+  "artist": "Artist Name",
+  "artwork": "https://...",
+  "type": "song",
+  "songLinkUrl": "https://song.link/...",
+  "platforms": [
+    { "id": "spotify", "name": "Spotify", "url": "https://...", "color": "#1DB954" }
+  ]
+}
+```
+
+Rate limit: 20 requests per 60 seconds per IP.
+
+## Deep linking
+
+Append `?from=<encoded-url>` to the homepage URL to pre-fill and auto-resolve a song on load.
+Example: `https://pastesong.vercel.app/?from=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F...`
+
+## Stack
+
+- Next.js 14 (App Router) on Vercel
+- API route: Node.js runtime
+- Rate limiting: Redis (optional)
+- Styling: Tailwind CSS
