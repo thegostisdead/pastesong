@@ -7,13 +7,27 @@ import {
   ActivityType,
 } from 'discord.js'
 
+// ── Logger ───────────────────────────────────────────────────────────────────
+
+const SERVICE_VERSION = process.env.npm_package_version ?? '1.0.0'
+const COMMIT_HASH = process.env.COMMIT_HASH ?? 'unknown'
+
+const log = {
+  info:  (event: Record<string, unknown>) => console.log(JSON.stringify({ level: 'info',  ...env(), ...event })),
+  error: (event: Record<string, unknown>) => console.error(JSON.stringify({ level: 'error', ...env(), ...event })),
+}
+
+function env(): Record<string, unknown> {
+  return { timestamp: new Date().toISOString(), version: SERVICE_VERSION, commit: COMMIT_HASH }
+}
+
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
 const API_BASE  = process.env.PASTESONG_API_URL ?? 'https://pastesong.vercel.app/api/resolve'
 
 if (!BOT_TOKEN) {
-  console.error('Missing DISCORD_BOT_TOKEN environment variable')
+  log.error({ event: 'startup_error', error: 'Missing DISCORD_BOT_TOKEN environment variable' })
   process.exit(1)
 }
 
@@ -131,7 +145,7 @@ const client = new Client({
 })
 
 client.once('clientReady', () => {
-  console.log(`Logged in as ${client.user?.tag}`)
+  log.info({ event: 'bot_ready', tag: client.user?.tag })
   client.user?.setActivity('for song links', { type: ActivityType.Watching })
 })
 
@@ -139,21 +153,34 @@ client.on('messageCreate', async (message: Message) => {
   // Ignore bots
   if (message.author.bot) return
 
-  console.log(`[msg] #${(message.channel as any).name ?? message.channelId} | ${message.author.tag}: ${message.content}`)
-
-  const musicUrl = extractMusicUrl(message.content)
-  console.log(`[url] extracted:`, musicUrl)
-  if (!musicUrl) return
-
-  // Show typing indicator while we resolve
-  if ('sendTyping' in message.channel) {
-    await message.channel.sendTyping()
+  const startTime = Date.now()
+  const wide: Record<string, unknown> = {
+    event:      'message_processed',
+    message_id: message.id,
+    guild_id:   message.guildId,
+    guild_name: (message.guild?.name),
+    channel_id: message.channelId,
+    channel:    (message.channel as any).name ?? message.channelId,
+    author_id:  message.author.id,
+    author:     message.author.tag,
   }
 
   try {
+    const musicUrl = extractMusicUrl(message.content)
+    if (!musicUrl) return
+
+    wide.music_url = musicUrl
+
+    // Show typing indicator while we resolve
+    if ('sendTyping' in message.channel) {
+      await message.channel.sendTyping()
+    }
+
     const result = await resolveSong(musicUrl)
 
     if ('error' in result) {
+      wide.outcome = 'resolution_error'
+      wide.error   = result.error
       // Only reply visibly if it's a user-facing error (not a silent skip)
       if (result.error.includes('not recognized') || result.error.includes('not found')) {
         await message.reply({ content: `⚠️ ${result.error}` })
@@ -161,10 +188,24 @@ client.on('messageCreate', async (message: Message) => {
       return
     }
 
+    wide.outcome         = 'success'
+    wide.song_title      = result.title
+    wide.song_artist     = result.artist
+    wide.song_type       = result.type
+    wide.platform_count  = result.platforms.length
+    wide.platforms       = result.platforms.map(p => p.id)
+
     const embed = buildEmbed(result)
     await message.reply({ embeds: [embed] })
   } catch (err) {
-    console.error('Failed to resolve song:', err)
+    wide.outcome = 'error'
+    wide.error   = String(err)
+  } finally {
+    if (wide.outcome) {
+      wide.duration_ms = Date.now() - startTime
+      const emit = wide.outcome === 'error' ? log.error : log.info
+      emit(wide)
+    }
   }
 })
 
