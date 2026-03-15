@@ -6,6 +6,8 @@ export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
 export default async function Image() {
+  const platforms = ['Spotify', 'Apple Music', 'YouTube Music', 'Tidal', 'Deezer', 'SoundCloud']
+
   return new ImageResponse(
     (
       <div
@@ -21,31 +23,52 @@ export default async function Image() {
           overflow: 'hidden',
         }}
       >
-        {/* Top glow */}
+        {/* Top glow — centered via left/right 0 + margin auto */}
         <div
           style={{
             position: 'absolute',
-            top: -160,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 900,
-            height: 500,
+            top: -240,
+            left: 0,
+            right: 0,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            width: 860,
+            height: 580,
             background:
-              'radial-gradient(ellipse at center, rgba(200,240,65,0.18) 0%, transparent 65%)',
+              'radial-gradient(ellipse at 50% 50%, rgba(200,240,65,0.22) 0%, rgba(200,240,65,0.06) 40%, transparent 70%)',
             borderRadius: '50%',
+            display: 'flex',
           }}
         />
 
-        {/* Tagline */}
+        {/* Subtle bottom glow */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -300,
+            left: 0,
+            right: 0,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            width: 600,
+            height: 400,
+            background:
+              'radial-gradient(ellipse at 50% 50%, rgba(200,240,65,0.08) 0%, transparent 70%)',
+            borderRadius: '50%',
+            display: 'flex',
+          }}
+        />
+
+        {/* Label */}
         <div
           style={{
             display: 'flex',
             color: '#c8f041',
-            fontSize: 18,
-            letterSpacing: '0.35em',
+            fontSize: 16,
+            letterSpacing: '0.4em',
             textTransform: 'uppercase',
-            marginBottom: 28,
-            opacity: 0.85,
+            marginBottom: 36,
+            opacity: 0.75,
             fontFamily: 'monospace',
           }}
         >
@@ -56,10 +79,11 @@ export default async function Image() {
         <div
           style={{
             display: 'flex',
-            fontSize: 136,
+            fontSize: 140,
             fontWeight: 800,
-            letterSpacing: '-0.03em',
-            lineHeight: 0.88,
+            letterSpacing: '-0.04em',
+            lineHeight: 0.9,
+            fontFamily: 'sans-serif',
           }}
         >
           <span style={{ color: '#ede9ff' }}>PASTE</span>
@@ -69,26 +93,35 @@ export default async function Image() {
         {/* Divider */}
         <div
           style={{
-            width: 48,
-            height: 2,
-            background: '#1e1c27',
-            margin: '40px 0 36px',
             display: 'flex',
+            width: 64,
+            height: 2,
+            background: '#c8f041',
+            opacity: 0.25,
+            margin: '44px 0 40px',
           }}
         />
 
-        {/* Platform list */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            color: '#6b6780',
-            fontSize: 15,
-            fontFamily: 'monospace',
-            letterSpacing: '0.12em',
-          }}
-        >
-          SPOTIFY · APPLE MUSIC · YOUTUBE · TIDAL · DEEZER · AND MORE
+        {/* Platform pills */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          {platforms.map((p) => (
+            <div
+              key={p}
+              style={{
+                display: 'flex',
+                background: '#13111a',
+                border: '1px solid #2a2835',
+                borderRadius: 100,
+                padding: '9px 22px',
+                color: '#6b6780',
+                fontSize: 14,
+                letterSpacing: '0.04em',
+                fontFamily: 'monospace',
+              }}
+            >
+              {p}
+            </div>
+          ))}
         </div>
       </div>
     ),
