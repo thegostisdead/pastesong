@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import { Syne, Outfit, Space_Mono } from 'next/font/google'
-import { GooeyToaster } from 'goey-toast'
+import { GooeyToaster } from './components/Toaster'
 import 'goey-toast/styles.css'
 import './globals.css'
 
