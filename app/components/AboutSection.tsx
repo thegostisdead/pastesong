@@ -41,6 +41,19 @@ export default function AboutSection() {
             and match by track title + artist name.
           </p>
           <p>No data is stored. All lookups happen at request time.</p>
+          <p>
+            <span className="text-text">Open source</span> — PasteSong is open source and can be
+            self-hosted.{' '}
+            <a
+              href="https://github.com/thegostisdead/pastesong"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent-dim hover:text-accent underline transition-colors"
+            >
+              View on GitHub
+            </a>
+            .
+          </p>
         </div>
       </details>
     </div>
