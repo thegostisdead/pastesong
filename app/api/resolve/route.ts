@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from 'redis'
 
 export const dynamic = 'force-dynamic'
 
@@ -196,9 +197,46 @@ function inputPlatform(url: string): string {
   return 'unknown'
 }
 
+const RATE_LIMIT = 20 // requests
+const RATE_WINDOW = 60 // seconds
+
+let redis: ReturnType<typeof createClient> | null = null
+
+async function getRedis() {
+  if (!process.env.REDIS_URL) return null
+  if (!redis) redis = await createClient({ url: process.env.REDIS_URL }).connect()
+  return redis
+}
+
+async function checkRateLimit(ip: string): Promise<boolean> {
+  const client = await getRedis()
+  if (!client) return true
+  const key = `rl:${ip}`
+  const now = Date.now()
+  const windowStart = now - RATE_WINDOW * 1000
+
+  try {
+    await client.zRemRangeByScore(key, 0, windowStart)
+    const count = await client.zCard(key)
+    if (count >= RATE_LIMIT) return false
+    await client.zAdd(key, { score: now, value: now.toString() })
+    await client.expire(key, RATE_WINDOW)
+    return true
+  } catch {
+    // If Redis is unavailable, fail open
+    return true
+  }
+}
+
 export async function GET(req: NextRequest) {
   const startTime = Date.now()
   const url = req.nextUrl.searchParams.get('url')
+
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const allowed = await checkRateLimit(ip)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+  }
 
   const event: Record<string, unknown> = {
     service: 'api/resolve',
