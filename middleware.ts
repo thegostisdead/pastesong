@@ -19,6 +19,7 @@ export function middleware(request: NextRequest) {
       'https://*.spotifycdn.com',
       'https://*.ytimg.com',
       'https://lh3.googleusercontent.com',
+      'https://m.media-amazon.com',
     ].join(' '),
     "connect-src 'self' https://vitals.vercel-insights.com",
     "frame-ancestors 'none'",
