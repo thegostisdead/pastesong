@@ -12,15 +12,8 @@ function isValidMusicUrl(url: string): boolean {
       h === 'open.spotify.com' ||
       h === 'music.apple.com' ||
       h === 'music.youtube.com' ||
-      h === 'tidal.com' ||
-      h === 'deezer.com' ||
-      h === 'soundcloud.com' ||
-      h === 'song.link' ||
-      h === 'odesli.co' ||
       h.endsWith('.spotify.com') ||
-      h.endsWith('.apple.com') ||
-      h.endsWith('.deezer.com') ||
-      h.endsWith('.soundcloud.com')
+      h.endsWith('.apple.com')
     )
   } catch {
     return false
@@ -95,7 +88,7 @@ export default function SongInput({ value, onChange, onSubmit, onPaste, isLoadin
       </div>
 
       <p className="text-muted text-xs font-mono mt-2.5 text-center">
-        works with spotify · apple music · youtube music · tidal · and more
+        works with spotify · apple music · youtube music
       </p>
     </form>
   )

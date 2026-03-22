@@ -45,7 +45,6 @@ interface ResolvedSong {
   artist: string
   artwork: string | null
   type: 'song' | 'album'
-  songLinkUrl: string
   platforms: Platform[]
 }
 
@@ -55,34 +54,12 @@ const MUSIC_HOSTNAMES = [
   'open.spotify.com',
   'music.apple.com',
   'music.youtube.com',
-  'tidal.com',
-  'deezer.com',
-  'soundcloud.com',
-  'music.amazon.com',
-  'www.amazon.com',
-  'pandora.com',
-  'anghami.com',
-  'boomplay.com',
-  'napster.com',
-  'song.link',
-  'odesli.co',
 ]
 
-// Platform emoji map for a nicer look in the embed
 const PLATFORM_EMOJI: Record<string, string> = {
   spotify:      '🟢',
   appleMusic:   '🍎',
   youtubeMusic: '▶️',
-  youtube:      '📺',
-  tidal:        '🌊',
-  amazonMusic:  '📦',
-  amazon:       '📦',
-  deezer:       '🎵',
-  soundcloud:   '☁️',
-  pandora:      '💜',
-  anghami:      '🎶',
-  boomplay:     '🔊',
-  napster:      '🎧',
 }
 
 function extractMusicUrl(text: string): string | null {
@@ -125,7 +102,7 @@ function buildEmbed(song: ResolvedSong): EmbedBuilder {
     .setAuthor({ name: 'pastesong', url: 'https://pastesong.vercel.app' })
     .setTitle(`${song.title}`)
     .setDescription(`by **${song.artist}**\n\n${links}`)
-    .setFooter({ text: `View on song.link → ${song.songLinkUrl}` })
+    .setFooter({ text: 'pastesong.vercel.app' })
 
   if (song.artwork) {
     embed.setThumbnail(song.artwork)

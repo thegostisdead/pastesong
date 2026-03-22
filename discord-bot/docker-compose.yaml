@@ -1,0 +1,12 @@
+services:
+  bot:
+    build: .
+    container_name: pastesong-discord-bot
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN?error}
+    init: true
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"

@@ -107,17 +107,6 @@ export default function ResultCard({ data, onReset }: { data: ResolvedSong; onRe
         ))}
       </div>
 
-      {/* song.link reference */}
-      <div className="mt-4 flex items-center justify-center gap-2">
-        <a
-          href={data.songLinkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs font-mono text-muted hover:text-text transition-colors underline"
-        >
-          view on song.link ↗
-        </a>
-      </div>
     </div>
   )
 }
